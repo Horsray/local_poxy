@@ -1,25 +1,11 @@
 # main_payload.py
-import os, base64, zipfile, io, requests, shutil, atexit
+import os, base64, zipfile, io, shutil, atexit
 from Crypto.Cipher import AES
 
-REMOTE_PAYLOAD_URL = "https://pub-35bf041400df49f594c852a1ca8489db.r2.dev/hueying-workflows-update/payload.b64"
 LOCAL_PAYLOAD_PATH = "payload.b64"
-KEY = b"1234567890abcdef"  
+KEY = b"1234567890abcdef"
 
-def download_payload():
-    try:
-        print("📡 下载更新文件 payload.b64 ...")
-        r = requests.get(REMOTE_PAYLOAD_URL, timeout=10)
-        if r.status_code == 200:
-            with open(LOCAL_PAYLOAD_PATH, "wb") as f:
-                f.write(r.content)
-            print("✅ 下载完成")
-            return True
-        else:
-            print(f"❌ 下载失败: 状态码 {r.status_code}")
-    except Exception as e:
-        print(f"❌ 下载异常: {e}")
-    return False
+from update import auto_update_if_needed, download_payload, fetch_remote_version
 
 def decrypt(data: bytes, key: bytes) -> bytes:
     nonce, tag, ciphertext = data[:16], data[16:32], data[32:]
@@ -64,6 +50,7 @@ def extract_payload(temp_dir):
 
 
 def init_payload():
+    auto_update_if_needed()
     temp_dir = os.path.join(os.path.expanduser("~"), "AppData", "Local", "Temp", "HueyingAI_temp_root")
     if not os.path.exists(temp_dir) or not os.listdir(temp_dir):
         print("📦 当前为首次加载，开始检查本地 payload 文件...")
@@ -72,6 +59,6 @@ def init_payload():
             extract_payload(temp_dir)
         else:
             print("📡 未检测到本地 payload，尝试从远程下载...")
-            if not download_payload():
+            if not download_payload(fetch_remote_version() or "0"):
                 raise RuntimeError("❌ 无法下载热更新文件")
             extract_payload(temp_dir)
