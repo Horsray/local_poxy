@@ -1,26 +1,19 @@
 @echo off
-title 一键打包绘影AI控制面板
-echo 🎨 正在激活虚拟环境并执行 build_exe.py ...
-echo ==============================================
+TITLE 一键打包Hueying桌面版
 
-
-:: 切换到当前 bat 所在目录
+:: 切换到脚本所在目录
 cd /d %~dp0
 
-:: 激活虚拟环境
-call E:\HueyingAI_Local\env\Scripts\activate
+:: 1. 安装依赖
+call npm install --prefix electron_app >nul 2>&1
 
-:: 执行打包脚本
-python build_exe.py
+:: 2. 打包 Electron 应用
+npx --prefix electron_app electron-packager ./electron_app HueyingDesktop --platform=win32 --arch=x64 --out=dist --overwrite --icon=icon.ico
 
-:: 判断是否执行成功
-if %ERRORLEVEL% EQU 0 (
-    echo.
-    echo ✅ 打包成功！
-) else (
-    echo.
-    echo ❌ 打包失败，请检查错误信息！
-)
+:: 3. 拷贝 Python 文件及依赖
+xcopy main.py dist\HueyingDesktop-win32-x64 /Y
+xcopy payload.b64 dist\HueyingDesktop-win32-x64 /Y
+xcopy update.py dist\HueyingDesktop-win32-x64 /Y
 
-echo.
+ECHO 打包完成，文件位于 dist\HueyingDesktop-win32-x64
 pause
