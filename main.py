@@ -20,6 +20,37 @@ import shutil
 import platform
 import tempfile   
 temp_dir = os.path.join(tempfile.gettempdir(), "HueyingAI_temp_root")
+#启动comfyui
+
+import os
+import subprocess
+import sys
+# 云端统一前缀
+CLOUD_BASE_URL = "https://proxy.hueying.cn"
+
+# 云端接口路径（基于统一前缀拼接）
+CLOUD_AUTH_URL = f"{CLOUD_BASE_URL}/auth/login"
+CLOUD_LOGOUT_URL = f"{CLOUD_BASE_URL}/auth/logout"
+CLOUD_CHECK_URL = f"{CLOUD_BASE_URL}/psPlus/workflow/checkOnline"
+
+def start_comfyui():
+    # 获取main.py 所在目录的绝对路径
+    base_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+
+    # 拼接 comfyui 的 main.py 路径
+    comfy_main = os.path.join(base_dir, 'ComfyUI', 'main.py')
+
+    # 虚拟环境 python 路径
+    python_path = os.path.join(base_dir, 'env', 'python.exe')
+    print("python_path =", python_path)
+    print("comfy_main =", comfy_main)
+
+    # 启动命令
+    subprocess.Popen([python_path, comfy_main, "--listen=0.0.0.0", "--port=8188"], cwd=os.path.join(base_dir, 'ComfyUI'))
+
+
+# 调用
+start_comfyui()
 if os.path.exists(temp_dir):
     try:
         shutil.rmtree(temp_dir)
@@ -60,7 +91,7 @@ import subprocess
 def hide_temp_dir():
     try:
         subprocess.call(['attrib', '+h', temp_dir])
-        print("📁 目录文件加载完毕")
+        # print("📁 目录文件加载完毕")
     except Exception as e:
         print(f"扫描成功")
 hide_temp_dir()
@@ -504,7 +535,7 @@ class HuiYingProxy:
 
         os.makedirs(default_config["workflow_dir"], exist_ok=True)
         default_config["local_comfyui_url"] = sanitize_url(default_config["local_comfyui_url"])
-        logger.info(f"📁 当前工作流路径为: {default_config['workflow_dir']}")
+        # logger.info(f"📁 当前工作流路径为: {default_config['workflow_dir']}")
         logger.info(f"🔗 当前 ComfyUI 地址: {default_config['local_comfyui_url']}")
         return default_config
 
@@ -997,7 +1028,7 @@ def update_comfyui_url():
     COMFYUI_URL = url
     return jsonify({"code": 200, "msg": "updated", "data": {"comfyuiUrl": url}})
 
-CLOUD_CHECK_URL = "https://umanage.lightcc.cloud/prod-api/psPlus/workflow/checkOnline"
+
 
 @app.route('/psPlus/workflow/checkOnline', methods=['GET'])
 def check_online():
@@ -1043,19 +1074,22 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-CLOUD_AUTH_URL = "https://umanage.lightcc.cloud/prod-api/auth/login"
 
-CLOUD_LOGOUT_URL = "https://umanage.lightcc.cloud/prod-api/auth/logout"
 @app.route('/auth/login', methods=['POST'])
 def login_compatible():
     data = request.get_json()
     try:
         response = requests.post(CLOUD_AUTH_URL, json=data)
         if response.status_code == 200:
+            result = response.json()
             print("[Login] 登录成功 - by cloud")
-            return jsonify(response.json()), 200
+            print("[Login] 云端返回内容:")
+            print(json.dumps(result, indent=2, ensure_ascii=False))
+            return jsonify(result), 200
         else:
             print("[Login] 登录失败")
+            print(f"[Login] 状态码: {response.status_code}")
+            print(f"[Login] 云端返回原始内容: {response.text}")
             return jsonify({"code": 1, "msg": "cloud authentication failed"}), 401
     except requests.RequestException as e:
         print("[Login] 登录失败")
@@ -1077,8 +1111,12 @@ def logout_proxy():
             result = {"code": 500, "msg": "云端响应格式错误", "raw": response.text}
         if response.status_code == 200:
             print("[Logout] 退出成功 - by cloud")
+            print("[Logout] 云端返回内容:")
+            print(json.dumps(result, indent=2, ensure_ascii=False))
         else:
             print("[Logout] 退出失败")
+            print(f"[Logout] 状态码: {response.status_code}")
+            print(f"[Logout] 云端返回原始内容: {response.text}")
         return jsonify(result), response.status_code
     except Exception as e:
         print("[Logout] 退出失败")
@@ -1112,7 +1150,7 @@ if __name__ == '__main__':
 
     port = proxy.config.get('proxy_port', 8080)
     logger.info(f"🟢 代理服务启动，监听端口: {port}")
-    logger.info(f"✅ 工作流映射配置加载完成，工作流数量: {len(proxy.mappings.get('workflow_mappings', {}))}")
+    logger.info(f"✅ 配置加载完成，映射数量: {len(proxy.mappings.get('workflow_mappings', {}))}")
     print("============== 欢迎使用绘影 AICG 代理终端服务 v2.5  ==============")
 
     server = WSGIServer(('0.0.0.0', port), app, log=None)
